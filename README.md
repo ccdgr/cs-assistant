@@ -150,7 +150,10 @@ ALTER TABLE `schools` ADD INDEX `idx_region_tags` (`region`, `is_985`, `is_211`,
 ### 6.2 历年招录数据表 (`admission_records`)
 
 ```
-学校 → 学院 → 学硕/专硕 → 专业代码/名称 → 方向代码/名称 → 年份 → 复试线
+学校 → 学院 → 学硕/专硕 → 专业方向 → 年份
+├─ 一志愿核心数据（独立列）
+├─ 复试政策（权重/机试/统一复试）
+└─ 调剂数据（JSON，多批次）
 ```
 
 ```sql
@@ -158,16 +161,37 @@ CREATE TABLE `admission_records` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `school_id` INT UNSIGNED NOT NULL COMMENT '关联schools表id',
     `college_name` VARCHAR(50) NOT NULL COMMENT '学院名称: 计算机科学与技术学院',
+
     `degree_type` TINYINT UNSIGNED NOT NULL COMMENT '1=学硕, 2=专硕',
     `major_code` VARCHAR(10) NOT NULL COMMENT '专业代码: 085400',
     `major_name` VARCHAR(50) NOT NULL COMMENT '专业名称: 电子信息',
     `direction_code` VARCHAR(10) DEFAULT '' COMMENT '方向代码: 01',
     `direction_name` VARCHAR(50) DEFAULT '不区分研究方向' COMMENT '方向名称: 计算机视觉',
+
     `year` INT NOT NULL COMMENT '招录年份',
-    `retest_score_line` INT NOT NULL COMMENT '复试分数线',
+
+    -- 一志愿核心数据
+    `first_choice_score_line` INT NOT NULL COMMENT '一志愿复试分数线',
+    `first_choice_retest_num` INT DEFAULT 0 COMMENT '一志愿复试人数',
+    `first_choice_actual_num` INT DEFAULT 0 COMMENT '一志愿录取人数',
+    `first_choice_avg_score` DECIMAL(5,2) DEFAULT 0.00 COMMENT '一志愿录取均分',
+
     `national_line` INT NOT NULL DEFAULT 0 COMMENT '当年国家线',
-    `planned_intake` INT DEFAULT 0 COMMENT '计划招生人数',
-    `actual_intake` INT DEFAULT 0 COMMENT '实际录取人数',
+    `planned_intake` INT DEFAULT 0 COMMENT '计划招生人数（含推免）',
+    `first_choice_intake` INT DEFAULT 0 COMMENT '一志愿录取人数',
+    `transfer_intake` INT DEFAULT 0 COMMENT '调剂录取人数',
+    `exemption_intake` INT DEFAULT 0 COMMENT '推免录取人数',
+
+    -- 复试政策
+    `is_joint_retest` TINYINT(1) DEFAULT 0 COMMENT '一志愿与调剂是否统一复试',
+    `initial_weight` TINYINT UNSIGNED DEFAULT 50 COMMENT '初试权重（%）',
+    `retest_weight` TINYINT UNSIGNED DEFAULT 50 COMMENT '复试权重（%）',
+    `has_machine_test` TINYINT(1) DEFAULT 0 COMMENT '是否有上机考试',
+    `machine_test_software` VARCHAR(50) DEFAULT '' COMMENT '上机考试软件/环境',
+
+    -- 调剂数据（JSON 列）
+    `transfer_info` JSON COMMENT '调剂批次详情 [{batch_name, score_line, retest_num, actual_num, avg_score, source_schools}]',
+
     `note` TEXT COMMENT '备注: 单科线、408改考说明等',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`)
