@@ -3,7 +3,9 @@ package middleware
 import (
 	"encoding/json"
 	"strings"
+	"time"
 
+	"cs-assistant-backend/internal/cache"
 	"cs-assistant-backend/internal/model"
 
 	"github.com/gofiber/fiber/v3"
@@ -20,11 +22,11 @@ func Auth(rdb *redis.Client) fiber.Handler {
 
 		token := strings.TrimPrefix(auth, "Bearer ")
 		if token == "" {
-			return c.Status(401).JSON(model.Error(model.CodeUnauthorized, "token 为空"))
+			return c.Status(401).JSON(model.Error(model.CodeUnauthorized, "缺少 token"))
 		}
 
 		// 查 Redis
-		key := "session:" + token
+		key := cache.Fmt(cache.KeySession, token)
 		raw, err := rdb.Get(c.Context(), key).Bytes()
 		if err == redis.Nil {
 			return c.Status(401).JSON(model.Error(model.CodeUnauthorized, "token 无效或已过期"))
@@ -42,7 +44,12 @@ func Auth(rdb *redis.Client) fiber.Handler {
 		c.Locals("open_id", session.OpenID)
 
 		// 续期 Token (滑动过期)
-		_ = rdb.Expire(c.Context(), key, 7*24*3600*1e9).Err() // 7 days
+		ttl := 7 * 24 * time.Hour
+		newExpiry := time.Now().Add(ttl)
+		_ = rdb.Expire(c.Context(), key, ttl).Err()
+
+		// 告知前端新的过期时间，前端收到后更新本地 expires_at
+		c.Set("X-Token-Expires", newExpiry.Format(time.RFC3339))
 
 		return c.Next()
 	}

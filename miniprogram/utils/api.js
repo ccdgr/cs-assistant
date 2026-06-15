@@ -94,6 +94,11 @@ function authedRequest (options) {
           logout() // token 过期，清除
           resolve({ success: false, error: '登录已过期，请重新登录', code: 401 })
         } else {
+          // 同步服务端滑动续期后的新过期时间
+          const newExpires = resp.header && resp.header['X-Token-Expires']
+          if (newExpires) {
+            wx.setStorageSync('expires_at', newExpires)
+          }
           resolve({ success: true, data: resp.data })
         }
       },

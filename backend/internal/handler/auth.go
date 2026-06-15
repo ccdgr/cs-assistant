@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"cs-assistant-backend/config"
+	"cs-assistant-backend/internal/cache"
 	"cs-assistant-backend/internal/model"
 	"cs-assistant-backend/internal/thirdparty"
 
@@ -15,8 +16,7 @@ import (
 )
 
 const (
-	TokenPrefix = "session:" // Redis key prefix
-	TokenTTL    = 7 * 24 * time.Hour
+	TokenTTL = 7 * 24 * time.Hour
 )
 
 // AuthHandler 登录相关处理器
@@ -57,7 +57,7 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 	// 4. 写入 Redis
 	session := model.UserSession{UserID: user.ID, OpenID: user.OpenID}
 	data, _ := json.Marshal(session)
-	if err := h.RDB.Set(c.Context(), TokenPrefix+token, data, TokenTTL).Err(); err != nil {
+	if err := h.RDB.Set(c.Context(), cache.Fmt(cache.KeySession, token), data, TokenTTL).Err(); err != nil {
 		return c.JSON(model.Error(model.CodeInternalError, "缓存会话失败"))
 	}
 
