@@ -1,0 +1,141 @@
+# ===== 操作系统 =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ===== 编辑器 & IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+
+# ===== Go =====
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/
+go.work
+
+# 编译产物
+/bin/
+/dist/
+/build/
+
+# ===== 微信小程序 =====
+miniprogram/project.private.config.json
+miniprogram_npm/
+
+# ===== 环境变量 & 密钥 (API Key, 数据库密码等) =====
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials.json
+service-account.json
+
+# ===== 依赖 =====
+node_modules/
+package-lock.json
+yarn.lock
+
+# ===== 日志 =====
+*.log
+logs/
+*.log.*
+
+# ===== 临时文件 =====
+*.tmp
+*.temp
+tmp/
+temp/
+.cache/
+
+# ===== AI Agent & LLM 工具 =====
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Gemini CLI
+.gemini/
+.gemini.yaml
+.gemini.json
+.gemini-*
+gemini-*.log
+
+# Cursor
+.cursor/
+.cursorrules
+
+# GitHub Copilot
+.github/copilot-instructions.md
+
+# Skills (AI 工具本地技能/指令文件)
+.skills/
+skills/*.local.*
+*.skill.local
+
+# Agent 会话记录 & 调试
+agent-logs/
+agent-traces/
+conversations/
+sessions/
+*.agent.jsonl
+*.trace.jsonl
+
+# LLM 请求/响应缓存
+.llm-cache/
+.model-cache/
+*.llm-cache
+
+# 向量数据库 (本地)
+chroma_db/
+faiss_index/
+vectorstore/
+*.index
+*.vec
+
+# Prompt 模板 (本地调试用)
+prompts/*.local.yaml
+prompts/*.local.json
+*.prompt.local
+
+# Tool Calling 调试输出
+tool-calls-debug/
+*.tool-call.log
+
+# 模型文件 (本地运行的 LLM)
+*.gguf
+*.bin
+*.safetensors
+models/
+checkpoints/
+lora-adapters/
+
+# Agent 配置文件 (含密钥的本地覆盖)
+agent.config.local.*
+mcp.servers.local.json
+settings.local.json
+
+# 数据集 & 评测 (本地)
+eval-results/
+benchmark-results/
+*.eval.json
+
+# Jupyter (Agent 实验用)
+.ipynb_checkpoints/
+*.ipynb
