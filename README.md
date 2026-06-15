@@ -135,6 +135,7 @@ CREATE TABLE `schools` (
     `tier` VARCHAR(10) NOT NULL COMMENT '档次: 985/211/双非',
     `is_985` TINYINT(1) DEFAULT 0 COMMENT '是否985',
     `is_211` TINYINT(1) DEFAULT 0 COMMENT '是否211',
+    `is_double_first_class` TINYINT(1) DEFAULT 0 COMMENT '是否双一流',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='高校基本信息表';
 

@@ -1,7 +1,6 @@
 package db
 
 import (
-	"context"
 	"fmt"
 	"log/slog"
 	"time"
@@ -16,17 +15,8 @@ import (
 
 // New 创建 GORM 数据库连接并自动迁移
 func New(cfg config.MySQLConfig, l *slog.Logger) (*gorm.DB, error) {
-	logLevel := logger.Warn
-	if l.Enabled(context.TODO(), slog.LevelDebug) {
-		logLevel = logger.Info
-	} else if l.Enabled(context.TODO(), slog.LevelInfo) {
-		logLevel = logger.Warn
-	} else {
-		logLevel = logger.Error
-	}
-
 	db, err := gorm.Open(mysql.Open(cfg.DSN()), &gorm.Config{
-		Logger: logger.Default.LogMode(logLevel),
+		Logger: logger.Default.LogMode(logger.Warn), // 只输出慢查询(≥200ms)和错误
 	})
 	if err != nil {
 		return nil, fmt.Errorf("connect mysql: %w", err)

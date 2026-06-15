@@ -8,7 +8,7 @@ mysql:
   host: "127.0.0.1"
   port: 3306
   user: "root"
-  password: ""
+  password: "root123"  # 开发环境默认，生产环境通过 MYSQL_PASSWORD 环境变量覆盖
   database: "cs_assistant"
   max_idle_conns: 10
   max_open_conns: 100

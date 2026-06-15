@@ -7,9 +7,10 @@ type School struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Name      string    `gorm:"size:50;uniqueIndex;not null" json:"name"`
 	Region    string    `gorm:"size:20;not null;index:idx_region_tier" json:"region"`
-	Tier      string    `gorm:"size:10;not null;index:idx_region_tier" json:"tier"` // 985 / 211 / 双非
-	Is985     bool      `gorm:"column:is_985;default:false" json:"is_985"`
-	Is211     bool      `gorm:"column:is_211;default:false" json:"is_211"`
+	Tier              string `gorm:"size:10;not null;index:idx_region_tier" json:"tier"` // 985 / 211 / 双非
+	Is985             bool   `gorm:"column:is_985;default:false" json:"is_985"`
+	Is211             bool   `gorm:"column:is_211;default:false" json:"is_211"`
+	IsDoubleFirstClass bool  `gorm:"column:is_double_first_class;default:false" json:"is_double_first_class"` // 双一流
 	CreatedAt time.Time `gorm:"autoCreateTime" json:"created_at"`
 }
 
