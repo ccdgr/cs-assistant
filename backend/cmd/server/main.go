@@ -8,6 +8,8 @@ import (
 	"cs-assistant-backend/config"
 	"cs-assistant-backend/internal/cache"
 	"cs-assistant-backend/internal/db"
+	"cs-assistant-backend/internal/handler"
+	"cs-assistant-backend/internal/middleware"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -34,7 +36,6 @@ func main() {
 		logger.Error("init mysql failed", "error", err)
 		os.Exit(1)
 	}
-	_ = database // 后续传入 handler/agent 使用
 
 	// 3. 初始化 Redis
 	rdb, err := cache.New(cfg.Redis, logger)
@@ -42,15 +43,29 @@ func main() {
 		logger.Error("init redis failed", "error", err)
 		os.Exit(1)
 	}
-	_ = rdb // 后续传入 middleware/handler 使用
 
 	// 4. 启动 Fiber 服务器
 	app := fiber.New(fiber.Config{
 		AppName: "cs-assistant-backend",
 	})
 
+	// 健康检查
 	app.Get("/health", func(c fiber.Ctx) error {
 		return c.SendString("ok")
+	})
+
+	// 认证路由 (无需登录)
+	authH := &handler.AuthHandler{DB: database, RDB: rdb, Wechat: cfg.Wechat}
+	auth := app.Group("/api/v1/auth")
+	auth.Post("/login", authH.Login)
+
+	// 需要登录的路由
+	api := app.Group("/api/v1", middleware.Auth(rdb))
+	api.Get("/user/me", func(c fiber.Ctx) error {
+		return c.JSON(map[string]any{
+			"user_id": c.Locals("user_id"),
+			"open_id": c.Locals("open_id"),
+		})
 	})
 
 	logger.Info("server starting", "addr", cfg.Server.Addr)

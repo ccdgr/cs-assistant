@@ -28,6 +28,10 @@ llm:
   temperature: 0.3
   timeout: 60 # 秒
 
+wechat:
+  app_id: ""
+  app_secret: ""
+
 log:
   level: "debug" # debug | info | warn | error
   format: "text" # text | json

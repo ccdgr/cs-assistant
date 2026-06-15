@@ -14,6 +14,7 @@ type Config struct {
 	MySQL  MySQLConfig  `yaml:"mysql"`
 	Redis  RedisConfig  `yaml:"redis"`
 	LLM    LLMConfig    `yaml:"llm"`
+	Wechat WechatConfig `yaml:"wechat"`
 	Log    LogConfig    `yaml:"log"`
 }
 
@@ -53,6 +54,11 @@ type LLMConfig struct {
 	MaxLoops    int     `yaml:"max_loops"`
 	Temperature float64 `yaml:"temperature"`
 	Timeout     int     `yaml:"timeout"`
+}
+
+type WechatConfig struct {
+	AppID     string `yaml:"app_id"`
+	AppSecret string `yaml:"app_secret"`
 }
 
 type LogConfig struct {
@@ -98,6 +104,12 @@ func Load(path string) (*Config, error) {
 	}
 	if v := os.Getenv("LLM_API_KEY"); v != "" {
 		cfg.LLM.APIKey = v
+	}
+	if v := os.Getenv("WECHAT_APP_ID"); v != "" {
+		cfg.Wechat.AppID = v
+	}
+	if v := os.Getenv("WECHAT_APP_SECRET"); v != "" {
+		cfg.Wechat.AppSecret = v
 	}
 
 	return &cfg, nil
