@@ -37,6 +37,9 @@ go.work
 miniprogram/project.private.config.json
 miniprogram_npm/
 
+# ===== 应用配置文件 (含本地密钥，不入库) =====
+config.yaml
+
 # ===== 环境变量 & 密钥 (API Key, 数据库密码等) =====
 .env
 .env.*

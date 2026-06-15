@@ -1,4 +1,5 @@
-# 408 考研择校助手 后端配置
+# 408 考研择校助手 后端配置 (示例)
+# 复制为 config.yaml 并填写实际值
 
 server:
   addr: ":8080"
@@ -8,7 +9,7 @@ mysql:
   host: "127.0.0.1"
   port: 3306
   user: "root"
-  password: "root123"  # 开发环境默认，生产环境通过 MYSQL_PASSWORD 环境变量覆盖
+  password: "your_mysql_password"
   database: "cs_assistant"
   max_idle_conns: 10
   max_open_conns: 100
@@ -22,15 +23,15 @@ redis:
 
 llm:
   api_url: "https://api.deepseek.com/v1/chat/completions"
-  api_key: ""
+  api_key: "your_llm_api_key"
   model: "deepseek-chat"
   max_loops: 3 # Agent ReAct 最大循环次数
   temperature: 0.3
   timeout: 60 # 秒
 
 wechat:
-  app_id: ""
-  app_secret: ""
+  app_id: "your_wechat_app_id"
+  app_secret: "your_wechat_app_secret"
 
 log:
   level: "debug" # debug | info | warn | error
