@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"time"
 
@@ -11,6 +9,7 @@ import (
 	"cs-assistant-backend/internal/thirdparty"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
 	"gorm.io/gorm"
 )
@@ -52,11 +51,8 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		return c.JSON(model.Error(model.CodeInternalError, "查询用户失败"))
 	}
 
-	// 3. 生成随机 Token
-	token, err := generateToken()
-	if err != nil {
-		return c.JSON(model.Error(model.CodeInternalError, "生成令牌失败"))
-	}
+	// 3. 生成 Token (UUID v7, 时间有序)
+	token := uuid.Must(uuid.NewV7()).String()
 
 	// 4. 写入 Redis
 	session := model.UserSession{UserID: user.ID, OpenID: user.OpenID}
@@ -70,12 +66,4 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 		Token:     token,
 		ExpiresAt: time.Now().Add(TokenTTL).Format(time.RFC3339),
 	}))
-}
-
-func generateToken() (string, error) {
-	b := make([]byte, 32)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
 }
