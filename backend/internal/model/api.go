@@ -116,6 +116,13 @@ type ToolCallArgs struct {
 	IsSelfScore    *bool  `json:"is_self_score,omitempty"`    // 是否只要34所自主划线院校
 	CSRankMin       string `json:"cs_rank_min,omitempty"`        // 学科评估最低要求，如: B+
 	HasMachineTest  *bool  `json:"has_machine_test,omitempty"`   // 是否要求有机试
+	ExamEnglishType *uint8 `json:"exam_english_type,omitempty"` // 1=英一, 2=英二
+	ExamMathType    *uint8 `json:"exam_math_type,omitempty"`    // 1=数一, 2=数二, 3=无
+	ExamCsType      *uint8 `json:"exam_cs_type,omitempty"`      // 1=统考408, 2=自命题
+	SubHasDs        *bool  `json:"sub_has_ds,omitempty"`         // 包含数据结构
+	SubHasOs        *bool  `json:"sub_has_os,omitempty"`         // 包含操作系统
+	SubHasCo        *bool  `json:"sub_has_co,omitempty"`         // 包含组成原理
+	SubHasCn        *bool  `json:"sub_has_cn,omitempty"`         // 包含计算机网络
 }
 
 // SchoolQueryResult 学校查询结果，包含学校信息和历年招录数据

@@ -182,6 +182,17 @@ CREATE TABLE `admission_records` (
     `transfer_intake` INT DEFAULT 0 COMMENT '调剂录取人数',
     `exemption_intake` INT DEFAULT 0 COMMENT '推免录取人数',
 
+    -- 初试科目（核心筛选维度）
+    `exam_english_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '1=英一, 2=英二',
+    `exam_math_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '1=数一, 2=数二, 3=无',
+    `exam_cs_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '1=统考408, 2=自命题',
+    `exam_cs_name` VARCHAR(50) DEFAULT '408计算机学科专业基础' COMMENT '专业课科目名，如: 822 计算机基础综合',
+    `sub_has_ds` TINYINT(1) DEFAULT 0 COMMENT '数据结构',
+    `sub_has_os` TINYINT(1) DEFAULT 0 COMMENT '操作系统',
+    `sub_has_co` TINYINT(1) DEFAULT 0 COMMENT '计算机组成原理',
+    `sub_has_cn` TINYINT(1) DEFAULT 0 COMMENT '计算机网络',
+    `sub_has_other` TINYINT(1) DEFAULT 0 COMMENT '其他（离散/软工）',
+
     -- 复试政策
     `is_joint_retest` TINYINT(1) DEFAULT 0 COMMENT '一志愿与调剂是否统一复试',
     `initial_weight` TINYINT UNSIGNED DEFAULT 50 COMMENT '初试权重（%）',
@@ -200,7 +211,46 @@ CREATE TABLE `admission_records` (
 ALTER TABLE `admission_records` ADD INDEX `idx_college_degree_year` (`school_id`, `college_name`, `degree_type`, `year`);
 ```
 
-### 6.3 用户表 (`users`)
+### 6.3 复试学生明细表 (`retest_rosters`)
+
+关联 `admission_records`，记录每位复试学生的初试各科分数、复试成绩、录取状态。
+
+```sql
+CREATE TABLE `retest_rosters` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `admission_record_id` INT UNSIGNED NOT NULL COMMENT '关联admission_records表id',
+
+    -- 身份与来源
+    `candidate_no` VARCHAR(20) DEFAULT '' COMMENT '考生编号（脱敏）',
+    `student_name` VARCHAR(20) DEFAULT '匿名考生' COMMENT '姓名（脱敏）',
+    `is_first_choice` TINYINT(1) DEFAULT 1 COMMENT '1=一志愿, 0=调剂生',
+    `first_choice_school_code` VARCHAR(10) DEFAULT '' COMMENT '一志愿报考学校代码（调剂生特有）',
+    `first_choice_school_name` VARCHAR(50) DEFAULT '' COMMENT '一志愿报考学校名称（调剂生特有）',
+
+    -- 初试4门科目
+    `initial_politics` TINYINT UNSIGNED NOT NULL COMMENT '政治',
+    `initial_english` TINYINT UNSIGNED NOT NULL COMMENT '英语',
+    `initial_math` TINYINT UNSIGNED NOT NULL COMMENT '数学',
+    `initial_cs_408` TINYINT UNSIGNED NOT NULL COMMENT '专业课（408或自命题）',
+    `initial_total_score` INT NOT NULL COMMENT '初试总分',
+
+    -- 复试与加权总分
+    `retest_written_score` DECIMAL(5,2) DEFAULT 0.00 COMMENT '复试笔试/机试',
+    `retest_interview_score` DECIMAL(5,2) DEFAULT 0.00 COMMENT '复试面试',
+    `final_score` DECIMAL(5,2) NOT NULL COMMENT '综合总分',
+
+    -- 分组与录取状态
+    `retest_group` VARCHAR(30) DEFAULT '未分组' COMMENT '复试分组',
+    `is_admitted` TINYINT(1) DEFAULT 0 COMMENT '0=未录取, 1=拟录取',
+
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (`admission_record_id`) REFERENCES `admission_records`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='复试学生明细表';
+
+ALTER TABLE `retest_rosters` ADD INDEX `idx_record_choice` (`admission_record_id`, `is_first_choice`);
+```
+
+### 6.4 用户表 (`users`)
 
 ```sql
 CREATE TABLE `users` (
@@ -213,7 +263,7 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 ```
 
-> **注意：** 启动时 GORM AutoMigrate 会自动创建/更新这三张表，无需手动执行 DDL。
+> **注意：** 启动时 GORM AutoMigrate 会自动创建/更新这四张表，无需手动执行 DDL。
 
 ---
 
