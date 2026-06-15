@@ -38,7 +38,7 @@ func New(cfg config.MySQLConfig, l *slog.Logger) (*gorm.DB, error) {
 	l.Info("mysql connected", "host", cfg.Host, "port", cfg.Port, "database", cfg.Database)
 
 	// 自动迁移
-	if err := db.AutoMigrate(&model.User{}, &model.School{}, &model.MajorScore{}); err != nil {
+	if err := db.AutoMigrate(&model.User{}, &model.School{}, &model.AdmissionRecord{}); err != nil {
 		return nil, fmt.Errorf("auto migrate: %w", err)
 	}
 	l.Info("mysql auto migrate completed")

@@ -97,18 +97,26 @@ type LoginResponse struct {
 
 // ToolCallArgs 大模型 Tool Calling 的参数，由 Agent 解析
 type ToolCallArgs struct {
-	SchoolName string `json:"school_name,omitempty"`
-	Region     string `json:"region,omitempty"`
-	Tier       string `json:"tier,omitempty"`
-	Year       int    `json:"year,omitempty"`
-	MajorCode  string `json:"major_code,omitempty"`
-	MaxScore   int    `json:"max_score,omitempty"`
-	MinScore   int    `json:"min_score,omitempty"`
+	SchoolName  string `json:"school_name,omitempty"`
+	Region      string `json:"region,omitempty"`
+	City        string `json:"city,omitempty"`
+	Tier        string `json:"tier,omitempty"`
+	CollegeName   string `json:"college_name,omitempty"`   // 学院: 计算机学院
+	DegreeType    *uint8 `json:"degree_type,omitempty"`    // 1=学硕, 2=专硕
+	DirectionCode string `json:"direction_code,omitempty"` // 方向代码: 01
+	DirectionName string `json:"direction_name,omitempty"` // 研究方向: 人工智能
+	Year        int    `json:"year,omitempty"`
+	MajorCode   string `json:"major_code,omitempty"`
+	RetestScoreMax int `json:"retest_score_max,omitempty"` // 复试线上限
+	RetestScoreMin int `json:"retest_score_min,omitempty"` // 复试线下限
+	Is408       *bool  `json:"is_408,omitempty"`      // 是否只要408统考院校
+	IsSelfScore *bool  `json:"is_self_score,omitempty"` // 是否只要自主划线院校
+	CSRankMin   string `json:"cs_rank_min,omitempty"`  // 学科评估最低要求: B+
 }
 
 // SchoolQueryResult 学校查询结果（含分数线）
 type SchoolQueryResult struct {
 	School    School       `json:"school"`
-	Scores    []MajorScore `json:"scores"`
+	Records   []AdmissionRecord `json:"records"`
 	MatchNote string       `json:"match_note,omitempty"` // 匹配说明
 }

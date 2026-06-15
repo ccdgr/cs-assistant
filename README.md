@@ -132,33 +132,48 @@ CREATE TABLE `schools` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `name` VARCHAR(50) NOT NULL UNIQUE COMMENT '学校名称',
     `region` VARCHAR(20) NOT NULL COMMENT '省份/地区',
-    `tier` VARCHAR(10) NOT NULL COMMENT '档次: 985/211/双非',
+    `city` VARCHAR(30) NOT NULL DEFAULT '' COMMENT '城市',
+    `tier` VARCHAR(20) NOT NULL DEFAULT '' COMMENT '档次: 985/211/双一流/双非',
     `is_985` TINYINT(1) DEFAULT 0 COMMENT '是否985',
     `is_211` TINYINT(1) DEFAULT 0 COMMENT '是否211',
     `is_double_first_class` TINYINT(1) DEFAULT 0 COMMENT '是否双一流',
+    `is_408` TINYINT(1) DEFAULT 0 COMMENT '是否考408统考',
+    `is_self_score` TINYINT(1) DEFAULT 0 COMMENT '是否34所自主划线',
+    `cs_rank` VARCHAR(10) DEFAULT '' COMMENT '计算机学科评估',
+    `official_url` VARCHAR(256) DEFAULT '' COMMENT '学校研招网',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='高校基本信息表';
 
-ALTER TABLE `schools` ADD INDEX `idx_region_tier` (`region`, `tier`);
+ALTER TABLE `schools` ADD INDEX `idx_region_tags` (`region`, `is_985`, `is_211`, `is_double_first_class`);
 ```
 
-### 6.2 历年招录数据表 (`major_scores`)
+### 6.2 历年招录数据表 (`admission_records`)
+
+```
+学校 → 学院 → 学硕/专硕 → 专业代码/名称 → 方向代码/名称 → 年份 → 复试线
+```
 
 ```sql
-CREATE TABLE `major_scores` (
+CREATE TABLE `admission_records` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `school_id` INT UNSIGNED NOT NULL COMMENT '关联schools表id',
-    `year` INT NOT NULL COMMENT '年份',
-    `major_code` VARCHAR(20) NOT NULL COMMENT '专业代码',
-    `major_name` VARCHAR(50) NOT NULL COMMENT '专业名称',
-    `score_line` INT NOT NULL COMMENT '复试线',
-    `intake_num` INT NOT NULL COMMENT '招生人数',
-    `note` TEXT COMMENT '备注',
+    `college_name` VARCHAR(50) NOT NULL COMMENT '学院名称: 计算机科学与技术学院',
+    `degree_type` TINYINT UNSIGNED NOT NULL COMMENT '1=学硕, 2=专硕',
+    `major_code` VARCHAR(10) NOT NULL COMMENT '专业代码: 085400',
+    `major_name` VARCHAR(50) NOT NULL COMMENT '专业名称: 电子信息',
+    `direction_code` VARCHAR(10) DEFAULT '' COMMENT '方向代码: 01',
+    `direction_name` VARCHAR(50) DEFAULT '不区分研究方向' COMMENT '方向名称: 计算机视觉',
+    `year` INT NOT NULL COMMENT '招录年份',
+    `retest_score_line` INT NOT NULL COMMENT '复试分数线',
+    `national_line` INT NOT NULL DEFAULT 0 COMMENT '当年国家线',
+    `planned_intake` INT DEFAULT 0 COMMENT '计划招生人数',
+    `actual_intake` INT DEFAULT 0 COMMENT '实际录取人数',
+    `note` TEXT COMMENT '备注: 单科线、408改考说明等',
     `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='历年招录明细表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='院校专业招录明细表';
 
-ALTER TABLE `major_scores` ADD INDEX `idx_school_year_major` (`school_id`, `year`, `major_code`);
+ALTER TABLE `admission_records` ADD INDEX `idx_college_degree_year` (`school_id`, `college_name`, `degree_type`, `year`);
 ```
 
 ### 6.3 用户表 (`users`)
