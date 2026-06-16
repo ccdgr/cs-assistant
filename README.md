@@ -151,64 +151,77 @@ ALTER TABLE `schools` ADD INDEX `idx_region_tags` (`region`, `is_985`, `is_211`,
 
 ```
 学校 → 学院 → 学硕/专硕 → 专业方向 → 年份
-├─ 一志愿核心数据（独立列）
-├─ 复试政策（权重/机试/统一复试）
+├─ 一志愿深度数据（报考人数/复试线/录取均分/中位数）
+├─ 初试科目（英一数一408 组合筛选）+ 子科目矩阵
+├─ 复试政策（权重公式/机试/统一复试）
+├─ 生存红线（学费/学制/宿舍）
 └─ 调剂数据（JSON，多批次）
 ```
 
 ```sql
 CREATE TABLE `admission_records` (
     `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    `school_id` INT UNSIGNED NOT NULL COMMENT '关联schools表id',
-    `college_name` VARCHAR(50) NOT NULL COMMENT '学院名称: 计算机科学与技术学院',
+    `school_id` INT UNSIGNED NOT NULL COMMENT '关联 schools.id',
+    `year` INT NOT NULL COMMENT '招录年份，如: 2025',
+    `degree_type` TINYINT UNSIGNED NOT NULL COMMENT '学位类型: 1=学硕, 2=专硕',
+    `major_code` VARCHAR(10) NOT NULL COMMENT '专业代码，如: 085400',
 
-    `degree_type` TINYINT UNSIGNED NOT NULL COMMENT '1=学硕, 2=专硕',
-    `major_code` VARCHAR(10) NOT NULL COMMENT '专业代码: 085400',
-    `major_name` VARCHAR(50) NOT NULL COMMENT '专业名称: 电子信息',
-    `direction_code` VARCHAR(10) DEFAULT '' COMMENT '方向代码: 01',
-    `direction_name` VARCHAR(50) DEFAULT '不区分研究方向' COMMENT '方向名称: 计算机视觉',
+    `college_name` VARCHAR(50) NOT NULL COMMENT '学院名称，如: 计算机科学与技术学院',
+    `major_name` VARCHAR(50) NOT NULL COMMENT '专业名称，如: 电子信息',
+    `direction_code` VARCHAR(10) DEFAULT '' COMMENT '研究方向代码，如: 01',
+    `direction_name` VARCHAR(50) DEFAULT '不区分研究方向' COMMENT '研究方向名称，如: 计算机视觉',
 
-    `year` INT NOT NULL COMMENT '招录年份',
-
-    -- 一志愿核心数据
+    -- 一志愿深度招录事实数据
+    `apply_num` INT DEFAULT 0 COMMENT '当年一志愿报考总人数',
     `first_choice_score_line` INT NOT NULL COMMENT '一志愿复试分数线',
-    `first_choice_retest_num` INT DEFAULT 0 COMMENT '一志愿复试人数',
-    `first_choice_actual_num` INT DEFAULT 0 COMMENT '一志愿录取人数',
-    `first_choice_avg_score` DECIMAL(5,2) DEFAULT 0.00 COMMENT '一志愿录取均分',
+    `first_choice_retest_num` INT DEFAULT 0 COMMENT '一志愿进入复试人数',
+    `first_choice_intake` INT DEFAULT 0 COMMENT '一志愿最终录取人数',
+    `first_choice_avg_score` DECIMAL(5,2) DEFAULT 0.00 COMMENT '一志愿拟录取考生初试均分',
+    `first_choice_median_score` DECIMAL(5,2) DEFAULT 0.00 COMMENT '一志愿拟录取考生初试中位数',
 
-    `national_line` INT NOT NULL DEFAULT 0 COMMENT '当年国家线',
-    `planned_intake` INT DEFAULT 0 COMMENT '计划招生人数（含推免）',
-    `first_choice_intake` INT DEFAULT 0 COMMENT '一志愿录取人数',
-    `transfer_intake` INT DEFAULT 0 COMMENT '调剂录取人数',
-    `exemption_intake` INT DEFAULT 0 COMMENT '推免录取人数',
+    `national_line` INT NOT NULL DEFAULT 0 COMMENT '当年国家线（A区对应线）',
+    `planned_intake` INT DEFAULT 0 COMMENT '招生总计划人数（含推免）',
+    `transfer_intake` INT DEFAULT 0 COMMENT '调剂录取总人数',
+    `exemption_intake` INT DEFAULT 0 COMMENT '推免接收总人数',
 
-    -- 初试科目（核心筛选维度）
-    `exam_english_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '1=英一, 2=英二',
-    `exam_math_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '1=数一, 2=数二, 3=无',
-    `exam_cs_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '1=统考408, 2=自命题',
+    -- 初试科目类型（高频组合查询）
+    `exam_english_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '英语科目: 1=英语一, 2=英语二',
+    `exam_math_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '数学科目: 1=数学一, 2=数学二, 3=无',
+    `exam_cs_type` TINYINT UNSIGNED DEFAULT 1 COMMENT '专业课类型: 1=统考408, 2=自命题',
     `exam_cs_name` VARCHAR(50) DEFAULT '408计算机学科专业基础' COMMENT '专业课科目名，如: 822 计算机基础综合',
-    `sub_has_ds` TINYINT(1) DEFAULT 0 COMMENT '数据结构',
-    `sub_has_os` TINYINT(1) DEFAULT 0 COMMENT '操作系统',
-    `sub_has_co` TINYINT(1) DEFAULT 0 COMMENT '计算机组成原理',
-    `sub_has_cn` TINYINT(1) DEFAULT 0 COMMENT '计算机网络',
-    `sub_has_other` TINYINT(1) DEFAULT 0 COMMENT '其他（离散/软工）',
 
-    -- 复试政策
+    -- 专业课子科目矩阵（自命题区分维度）
+    `sub_has_ds` TINYINT(1) DEFAULT 0 COMMENT '是否考察数据结构',
+    `sub_has_os` TINYINT(1) DEFAULT 0 COMMENT '是否考察操作系统',
+    `sub_has_co` TINYINT(1) DEFAULT 0 COMMENT '是否考察计算机组成原理',
+    `sub_has_cn` TINYINT(1) DEFAULT 0 COMMENT '是否考察计算机网络',
+    `sub_has_other` TINYINT(1) DEFAULT 0 COMMENT '是否考察其他（离散/软工/C语言等）',
+
+    -- 复试政策与算分公式
     `is_joint_retest` TINYINT(1) DEFAULT 0 COMMENT '一志愿与调剂是否统一复试',
-    `initial_weight` TINYINT UNSIGNED DEFAULT 50 COMMENT '初试权重（%）',
-    `retest_weight` TINYINT UNSIGNED DEFAULT 50 COMMENT '复试权重（%）',
-    `has_machine_test` TINYINT(1) DEFAULT 0 COMMENT '是否有上机考试',
-    `machine_test_software` VARCHAR(50) DEFAULT '' COMMENT '上机考试软件/环境',
+    `initial_weight` TINYINT UNSIGNED DEFAULT 50 COMMENT '初试成绩占比百分比',
+    `retest_weight` TINYINT UNSIGNED DEFAULT 50 COMMENT '复试成绩占比百分比',
+    `formula_description` VARCHAR(255) DEFAULT '' COMMENT '总成绩计算公式，如: (初试÷5)×0.6+复试×0.4',
+    `has_machine_test` TINYINT(1) DEFAULT 0 COMMENT '复试是否包含上机考试',
+    `machine_test_software` VARCHAR(50) DEFAULT '' COMMENT '上机平台，如: CCF CSP / PTA / 自建OJ',
+
+    -- 面包与生存红线
+    `tuition_annual` INT DEFAULT 8000 COMMENT '每年学费（元）',
+    `study_duration` DECIMAL(2,1) DEFAULT 3.0 COMMENT '学制年数: 2.0/2.5/3.0',
+    `has_accommodation` TINYINT(1) DEFAULT 1 COMMENT '专硕是否提供校内宿舍',
 
     -- 调剂数据（JSON 列）
-    `transfer_info` JSON COMMENT '调剂批次详情 [{batch_name, score_line, retest_num, actual_num, avg_score, source_schools}]',
+    `transfer_info` JSON COMMENT '调剂批次详情 [{batch_name,score_line,retest_num,actual_num,avg_score,source_schools}]',
 
-    `note` TEXT COMMENT '备注: 单科线、408改考说明等',
-    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `note` TEXT COMMENT '备注（单科线要求、改考408历史、特殊政策等）',
+    `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '记录更新时间',
     FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='院校专业招录明细表';
 
-ALTER TABLE `admission_records` ADD INDEX `idx_college_degree_year` (`school_id`, `college_name`, `degree_type`, `year`);
+-- 复合索引：覆盖 学校+年份+学位+专业代码 的高频联合查询
+ALTER TABLE `admission_records` ADD INDEX `idx_school_year_degree_major` (`school_id`, `year`, `degree_type`, `major_code`);
+-- 筛选索引：覆盖 英数408科目组合 的快速筛选
+ALTER TABLE `admission_records` ADD INDEX `idx_exam_filters` (`exam_english_type`, `exam_math_type`, `exam_cs_type`);
 ```
 
 ### 6.3 复试学生明细表 (`retest_rosters`)

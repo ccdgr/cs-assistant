@@ -123,6 +123,11 @@ type ToolCallArgs struct {
 	SubHasOs        *bool  `json:"sub_has_os,omitempty"`         // 包含操作系统
 	SubHasCo        *bool  `json:"sub_has_co,omitempty"`         // 包含组成原理
 	SubHasCn        *bool  `json:"sub_has_cn,omitempty"`         // 包含计算机网络
+
+	IsJointRetest   *bool   `json:"is_joint_retest,omitempty"`   // 是否一志愿与调剂统一复试
+	HasAccommodation *bool  `json:"has_accommodation,omitempty"`  // 是否提供校内宿舍
+	TuitionMax      int     `json:"tuition_max,omitempty"`        // 学费上限(元)
+	StudyDuration   float32 `json:"study_duration,omitempty"`     // 学制筛选: 2.0/2.5/3.0
 }
 
 // SchoolQueryResult 学校查询结果，包含学校信息和历年招录数据
