@@ -12,8 +12,6 @@ type School struct {
 	Is985              bool      `gorm:"column:is_985;default:false" json:"is_985"`              // 是否985
 	Is211              bool      `gorm:"column:is_211;default:false" json:"is_211"`              // 是否211
 	IsDoubleFirstClass bool      `gorm:"column:is_double_first_class;default:false" json:"is_double_first_class"` // 是否双一流建设高校
-	Is408              bool      `gorm:"column:is_408;default:false" json:"is_408"`              // 是否考408统考
-	IsSelfScore        bool      `gorm:"column:is_self_score;default:false" json:"is_self_score"` // 是否34所自主划线院校
 	CSRank             string    `gorm:"size:10;default:''" json:"cs_rank"`                       // 计算机学科评估等级: A+/A/A-/B+/B/C
 	OfficialURL        string    `gorm:"size:256;default:''" json:"official_url"`                 // 学校研招网地址
 	CreatedAt          time.Time `gorm:"autoCreateTime" json:"created_at"`                        // 创建时间

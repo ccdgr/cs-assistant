@@ -137,8 +137,6 @@ CREATE TABLE `schools` (
     `is_985` TINYINT(1) DEFAULT 0 COMMENT '是否985',
     `is_211` TINYINT(1) DEFAULT 0 COMMENT '是否211',
     `is_double_first_class` TINYINT(1) DEFAULT 0 COMMENT '是否双一流',
-    `is_408` TINYINT(1) DEFAULT 0 COMMENT '是否考408统考',
-    `is_self_score` TINYINT(1) DEFAULT 0 COMMENT '是否34所自主划线',
     `cs_rank` VARCHAR(10) DEFAULT '' COMMENT '计算机学科评估',
     `official_url` VARCHAR(256) DEFAULT '' COMMENT '学校研招网',
     `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -165,10 +163,10 @@ CREATE TABLE `admission_records` (
     `year` INT NOT NULL COMMENT '招录年份，如: 2025',
     `degree_type` TINYINT UNSIGNED NOT NULL COMMENT '学位类型: 1=学硕, 2=专硕',
     `major_code` VARCHAR(10) NOT NULL COMMENT '专业代码，如: 085400',
+    `direction_code` VARCHAR(10) DEFAULT '' COMMENT '研究方向代码，如: 01',
 
     `college_name` VARCHAR(50) NOT NULL COMMENT '学院名称，如: 计算机科学与技术学院',
     `major_name` VARCHAR(50) NOT NULL COMMENT '专业名称，如: 电子信息',
-    `direction_code` VARCHAR(10) DEFAULT '' COMMENT '研究方向代码，如: 01',
     `direction_name` VARCHAR(50) DEFAULT '不区分研究方向' COMMENT '研究方向名称，如: 计算机视觉',
 
     -- 一志愿深度招录事实数据
@@ -218,6 +216,8 @@ CREATE TABLE `admission_records` (
     FOREIGN KEY (`school_id`) REFERENCES `schools`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='院校专业招录明细表';
 
+-- 唯一约束：同一学校/年份/学位/专业/方向 只能有一条记录
+ALTER TABLE `admission_records` ADD UNIQUE INDEX `uk_school_year_degree_major_dir` (`school_id`, `year`, `degree_type`, `major_code`, `direction_code`);
 -- 复合索引：覆盖 学校+年份+学位+专业代码 的高频联合查询
 ALTER TABLE `admission_records` ADD INDEX `idx_school_year_degree_major` (`school_id`, `year`, `degree_type`, `major_code`);
 -- 筛选索引：覆盖 英数408科目组合 的快速筛选
@@ -240,11 +240,7 @@ CREATE TABLE `retest_rosters` (
     `first_choice_school_code` VARCHAR(10) DEFAULT '' COMMENT '一志愿报考学校代码（调剂生特有）',
     `first_choice_school_name` VARCHAR(50) DEFAULT '' COMMENT '一志愿报考学校名称（调剂生特有）',
 
-    -- 初试4门科目
-    `initial_politics` TINYINT UNSIGNED NOT NULL COMMENT '政治',
-    `initial_english` TINYINT UNSIGNED NOT NULL COMMENT '英语',
-    `initial_math` TINYINT UNSIGNED NOT NULL COMMENT '数学',
-    `initial_cs_408` TINYINT UNSIGNED NOT NULL COMMENT '专业课（408或自命题）',
+    -- 分数（仅公开可获取的总分类数据）
     `initial_total_score` INT NOT NULL COMMENT '初试总分',
 
     -- 复试与加权总分
@@ -263,7 +259,68 @@ CREATE TABLE `retest_rosters` (
 ALTER TABLE `retest_rosters` ADD INDEX `idx_record_choice` (`admission_record_id`, `is_first_choice`);
 ```
 
-### 6.4 用户表 (`users`)
+### 6.4 学校标签表 (`school_tags`)
+
+学校质量标签定义，由 Agent 分析和用户反馈维护。
+
+```sql
+CREATE TABLE `school_tags` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(20) NOT NULL UNIQUE COMMENT '标签名: 双非友好/保护一志愿/压分/机试难',
+    `category` VARCHAR(20) DEFAULT '' COMMENT '分类: 公平性/难度/就业/住宿/风评',
+    `color` VARCHAR(7) DEFAULT '' COMMENT '展示色，如: #22C55E',
+    `sort` INT DEFAULT 0 COMMENT '排序权重'
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='学校标签定义';
+```
+
+### 6.5 学校标签关系表 (`school_tag_relations`)
+
+学校 ↔ 标签多对多关系，支持赞同/反对投票。
+
+```sql
+CREATE TABLE `school_tag_relations` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `school_id` INT UNSIGNED NOT NULL COMMENT '学校ID',
+    `tag_id` INT UNSIGNED NOT NULL COMMENT '标签ID',
+    `vote_up` INT DEFAULT 0 COMMENT '赞同数',
+    `vote_down` INT DEFAULT 0 COMMENT '反对数',
+    `source` VARCHAR(30) DEFAULT '' COMMENT '来源: agent_derived/user_reported/admin',
+    UNIQUE INDEX `uk_school_tag` (`school_id`, `tag_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='学校标签关系';
+```
+
+### 6.6 用户收藏表 (`user_favorites`)
+
+```sql
+CREATE TABLE `user_favorites` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` INT UNSIGNED NOT NULL COMMENT '用户ID',
+    `admission_record_id` INT UNSIGNED NOT NULL COMMENT '关联 admission_records.id',
+    `note` VARCHAR(200) DEFAULT '' COMMENT '用户备注',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '收藏时间',
+    UNIQUE INDEX `uk_user_record` (`user_id`, `admission_record_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户收藏';
+```
+
+### 6.7 用户行为日志表 (`user_behaviors`)
+
+轻量埋点，供 Agent 个性化推荐（仅依赖近 90 天行为）。
+
+```sql
+CREATE TABLE `user_behaviors` (
+    `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    `user_id` INT UNSIGNED NOT NULL COMMENT '用户ID',
+    `action` VARCHAR(30) NOT NULL COMMENT '行为: search/view/compare/favorite/share',
+    `target_type` VARCHAR(20) DEFAULT '' COMMENT '目标类型: school/admission_record/retest_roster',
+    `target_id` INT UNSIGNED DEFAULT 0 COMMENT '目标ID',
+    `search_query` TEXT COMMENT '搜索关键词（action=search时）',
+    `search_filters_json` JSON COMMENT '搜索筛选条件JSON',
+    `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP COMMENT '行为时间',
+    INDEX `idx_user_created` (`user_id`, `action`, `created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户行为日志';
+```
+
+### 6.8 用户表 (`users`)
 
 ```sql
 CREATE TABLE `users` (
@@ -276,7 +333,7 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
 ```
 
-> **注意：** 启动时 GORM AutoMigrate 会自动创建/更新这四张表，无需手动执行 DDL。
+> **注意：** 启动时 GORM AutoMigrate 会自动创建/更新这八张表，无需手动执行 DDL。
 
 ---
 

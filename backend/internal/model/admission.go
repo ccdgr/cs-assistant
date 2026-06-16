@@ -42,15 +42,16 @@ type TransferRound struct {
 //	└─ 调剂数据（JSON，多批次）
 type AdmissionRecord struct {
 	ID         uint   `gorm:"primaryKey" json:"id"`                                                                      // 主键
-	SchoolID   uint   `gorm:"not null;index:idx_school_year_degree_major,priority:1" json:"school_id"`                   // 关联 schools.id
-	Year       int    `gorm:"not null;index:idx_school_year_degree_major,priority:2" json:"year"`                        // 招录年份，如: 2025
-	DegreeType uint8  `gorm:"not null;index:idx_school_year_degree_major,priority:3" json:"degree_type"`                 // 学位类型: 1=学硕, 2=专硕
-	MajorCode  string `gorm:"type:varchar(10);not null;index:idx_school_year_degree_major,priority:4" json:"major_code"` // 专业代码，如: 085400
+	SchoolID   uint   `gorm:"not null;uniqueIndex:uk_school_year_degree_major_dir,priority:1;index:idx_school_year_degree_major,priority:1" json:"school_id"` // 关联 schools.id
+	Year       int    `gorm:"not null;uniqueIndex:uk_school_year_degree_major_dir,priority:2;index:idx_school_year_degree_major,priority:2" json:"year"`     // 招录年份，如: 2025
+	DegreeType uint8  `gorm:"not null;uniqueIndex:uk_school_year_degree_major_dir,priority:3;index:idx_school_year_degree_major,priority:3" json:"degree_type"` // 学位类型: 1=学硕, 2=专硕
+	MajorCode  string `gorm:"type:varchar(10);not null;uniqueIndex:uk_school_year_degree_major_dir,priority:4;index:idx_school_year_degree_major,priority:4" json:"major_code"` // 专业代码，如: 085400
 
-	CollegeName   string `gorm:"type:varchar(50);not null" json:"college_name"`            // 学院名称，如: 计算机科学与技术学院
-	MajorName     string `gorm:"type:varchar(50);not null" json:"major_name"`              // 专业名称，如: 电子信息
-	DirectionCode string `gorm:"type:varchar(10);default:''" json:"direction_code"`        // 研究方向代码，如: 01（不区分方向时为空）
-	DirectionName string `gorm:"type:varchar(50);default:'不区分研究方向'" json:"direction_name"` // 研究方向名称，如: 计算机视觉
+	DirectionCode string `gorm:"type:varchar(10);default:'';uniqueIndex:uk_school_year_degree_major_dir,priority:5" json:"direction_code"` // 研究方向代码（唯一约束的一部分）
+	DirectionName string `gorm:"type:varchar(50);default:'不区分研究方向'" json:"direction_name"`                                                // 研究方向名称，如: 计算机视觉
+
+	CollegeName string `gorm:"type:varchar(50);not null" json:"college_name"` // 学院名称，如: 计算机科学与技术学院
+	MajorName   string `gorm:"type:varchar(50);not null" json:"major_name"`   // 专业名称，如: 电子信息
 
 	// === 一志愿深度招录事实数据（Agent 计算报录比/复录比的核心输入） ===
 	ApplyNum               int     `gorm:"default:0" json:"apply_num"`                                      // 当年一志愿报考总人数

@@ -112,8 +112,6 @@ type ToolCallArgs struct {
 	MajorCode      string `json:"major_code,omitempty"`      // 专业代码
 	ScoreMax int `json:"score_max,omitempty"` // 一志愿复试线上限
 	ScoreMin int `json:"score_min,omitempty"` // 一志愿复试线下限
-	Is408          *bool  `json:"is_408,omitempty"`           // 是否只要408统考院校
-	IsSelfScore    *bool  `json:"is_self_score,omitempty"`    // 是否只要34所自主划线院校
 	CSRankMin       string `json:"cs_rank_min,omitempty"`        // 学科评估最低要求，如: B+
 	HasMachineTest  *bool  `json:"has_machine_test,omitempty"`   // 是否要求有机试
 	ExamEnglishType *uint8 `json:"exam_english_type,omitempty"` // 1=英一, 2=英二
