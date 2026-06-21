@@ -1,25 +1,19 @@
-// api.js — 微信小程序 API 工具层
 const BASE_URL = 'http://localhost:8080/api/v1'
 
 /**
  * 微信静默登录
- * 1. 调用 wx.login 获取临时 code
- * 2. 发送 code 到后端换取 token
- * 3. 持久化 token 到本地存储
- *
- * @returns {Promise<{success: boolean, token?: string, error?: string}>}
+ * 1. wx.login 获取临时 code
+ * 2. POST /auth/login 换取 JWT token（30天有效）
+ * 3. 持久化 token
  */
 function login () {
-  return new Promise((resolve, reject) => {
-    // Step 1: 获取微信临时凭证
+  return new Promise((resolve) => {
     wx.login({
       success (res) {
         if (!res.code) {
           resolve({ success: false, error: 'wx.login 未返回 code' })
           return
         }
-
-        // Step 2: 发送 code 到后端
         wx.request({
           url: `${BASE_URL}/auth/login`,
           method: 'POST',
@@ -28,11 +22,8 @@ function login () {
           success (resp) {
             const body = resp.data
             if (resp.statusCode === 200 && body.code === 0 && body.data && body.data.token) {
-              const token = body.data.token
-              // Step 3: 持久化 token
-              wx.setStorageSync('token', token)
-              wx.setStorageSync('expires_at', body.data.expires_at)
-              resolve({ success: true, token })
+              wx.setStorageSync('token', body.data.token)
+              resolve({ success: true, token: body.data.token })
             } else {
               resolve({ success: false, error: body.message || '登录失败' })
             }
@@ -49,33 +40,26 @@ function login () {
   })
 }
 
-/**
- * 读取本地存储的 token
- * @returns {string|null}
- */
+/** 重新登录（401 时自动调用） */
+function reLogin () {
+  return login()
+}
+
 function getToken () {
   return wx.getStorageSync('token') || null
 }
 
-/**
- * 检查是否已登录 (token 是否存在)
- * @returns {boolean}
- */
 function isLoggedIn () {
   return !!getToken()
 }
 
-/**
- * 清除登录态
- */
 function logout () {
   wx.removeStorageSync('token')
-  wx.removeStorageSync('expires_at')
 }
 
 /**
  * 带认证头的通用请求
- * @param {object} options - 同 wx.request，自动注入 Authorization
+ * 401 时自动清除 token 并触发重新登录
  */
 function authedRequest (options) {
   const token = getToken()
@@ -85,20 +69,15 @@ function authedRequest (options) {
     token ? { Authorization: `Bearer ${token}` } : {}
   )
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     wx.request({
       ...options,
       header,
       success (resp) {
         if (resp.statusCode === 401) {
-          logout() // token 过期，清除
-          resolve({ success: false, error: '登录已过期，请重新登录', code: 401 })
+          logout()
+          resolve({ success: false, error: '登录已过期', code: 401, needReLogin: true })
         } else {
-          // 同步服务端滑动续期后的新过期时间
-          const newExpires = resp.header && resp.header['X-Token-Expires']
-          if (newExpires) {
-            wx.setStorageSync('expires_at', newExpires)
-          }
           resolve({ success: true, data: resp.data })
         }
       },
@@ -109,4 +88,4 @@ function authedRequest (options) {
   })
 }
 
-module.exports = { login, getToken, isLoggedIn, logout, authedRequest, BASE_URL }
+module.exports = { login, reLogin, getToken, isLoggedIn, logout, authedRequest, BASE_URL }

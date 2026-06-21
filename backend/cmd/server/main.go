@@ -18,36 +18,41 @@ func main() {
 	configPath := flag.String("config", "config/config.yaml", "配置文件路径")
 	flag.Parse()
 
-	// 1. 初始化 slog
+	// 1. 加载配置
 	cfg, err := config.Load(*configPath)
 	if err != nil {
 		slog.Error("load config failed", "error", err)
 		os.Exit(1)
 	}
 
-	logger := newLogger(cfg.Log)
-	slog.SetDefault(logger)
+	// 2. 初始化 slog
+	log := slog.New(newHandler(cfg.Log))
+	slog.SetDefault(log)
 
-	logger.Info("config loaded", "path", *configPath)
+	log.Info("config loaded", "path", *configPath)
 
-	// 2. 初始化 MySQL
-	database, err := db.New(cfg.MySQL, logger)
+	// 3. 初始化 MySQL
+	database, err := db.New(cfg.MySQL, log)
 	if err != nil {
-		logger.Error("init mysql failed", "error", err)
+		log.Error("init mysql failed", "error", err)
 		os.Exit(1)
 	}
 
-	// 3. 初始化 Redis
-	rdb, err := cache.New(cfg.Redis, logger)
+	// 4. 初始化 Redis（仅用于对话上下文 + 限流，登录态由 JWT 管理）
+	rdb, err := cache.New(cfg.Redis, log)
 	if err != nil {
-		logger.Error("init redis failed", "error", err)
+		log.Error("init redis failed", "error", err)
 		os.Exit(1)
 	}
+	_ = rdb // 后续 Agent 对话 + 限流中间件使用
 
-	// 4. 启动 Fiber 服务器
+	// 5. 启动 Fiber
 	app := fiber.New(fiber.Config{
 		AppName: "cs-assistant-backend",
 	})
+
+	// 全局中间件
+	app.Use(middleware.RequestID())
 
 	// 健康检查
 	app.Get("/health", func(c fiber.Ctx) error {
@@ -55,27 +60,28 @@ func main() {
 	})
 
 	// 认证路由 (无需登录)
-	authH := &handler.AuthHandler{DB: database, RDB: rdb, Wechat: cfg.Wechat}
+	authH := &handler.AuthHandler{DB: database, Wechat: cfg.Wechat, JWT: cfg.JWT}
 	auth := app.Group("/api/v1/auth")
 	auth.Post("/login", authH.Login)
 
-	// 需要登录的路由
-	api := app.Group("/api/v1", middleware.Auth(rdb))
+	// 需要登录的路由 — JWT 鉴权
+	api := app.Group("/api/v1", middleware.Auth(cfg.JWT))
 	api.Get("/user/me", func(c fiber.Ctx) error {
+		c.Locals("logger").(*slog.Logger).Info("query user profile")
 		return c.JSON(map[string]any{
 			"user_id": c.Locals("user_id"),
 			"open_id": c.Locals("open_id"),
 		})
 	})
 
-	logger.Info("server starting", "addr", cfg.Server.Addr)
+	log.Info("server starting", "addr", cfg.Server.Addr)
 	if err := app.Listen(cfg.Server.Addr); err != nil {
-		logger.Error("server failed", "error", err)
+		log.Error("server failed", "error", err)
 		os.Exit(1)
 	}
 }
 
-func newLogger(cfg config.LogConfig) *slog.Logger {
+func newHandler(cfg config.LogConfig) slog.Handler {
 	level, err := cfg.SlogLevel()
 	if err != nil {
 		level = slog.LevelInfo
@@ -86,12 +92,8 @@ func newLogger(cfg config.LogConfig) *slog.Logger {
 		AddSource: cfg.AddSource,
 	}
 
-	var handler slog.Handler
 	if cfg.Format == "json" {
-		handler = slog.NewJSONHandler(os.Stdout, opts)
-	} else {
-		handler = slog.NewTextHandler(os.Stdout, opts)
+		return slog.NewJSONHandler(os.Stdout, opts)
 	}
-
-	return slog.New(handler)
+	return slog.NewTextHandler(os.Stdout, opts)
 }

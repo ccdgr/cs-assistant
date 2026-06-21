@@ -341,7 +341,6 @@ CREATE TABLE `users` (
 
 | Key 设计 | 数据结构 | TTL | 业务场景 |
 | --- | --- | --- | --- |
-| `session:${token}` | String (JSON) | 7 天 | 微信小程序登录态，存储 `UserSession{user_id, open_id}` |
 | `chat:history:${session_id}` | List | 1 小时 | 大模型多轮对话上下文窗口 |
 | `rate:limit:${openid}:${api}` | String | 1 分钟 | 接口防刷限流 |
 
@@ -437,4 +436,7 @@ Redis: SET session:<token> = {user_id, open_id}  TTL 7 天
 返回 { token, expires_at }
 ```
 
-后续请求携带 `Authorization: Bearer <token>`，中间件从 Redis 还原用户身份并注入请求上下文，每次验证自动滑动续期。
+Token 为 JWT（HS256 签名，30 天过期）。后续请求携带 `Authorization: Bearer <token>`，中间件验证签名和过期时间。401 时小程序自动 `wx.login()` 重新签发。
+
+项目1：校园音乐节抢票系统
+项目2：服务器“智能运维与日志分析”助手

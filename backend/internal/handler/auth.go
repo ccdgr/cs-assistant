@@ -2,32 +2,37 @@ package handler
 
 import (
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"cs-assistant-backend/config"
-	"cs-assistant-backend/internal/cache"
 	"cs-assistant-backend/internal/model"
 	"cs-assistant-backend/internal/thirdparty"
 
 	"github.com/gofiber/fiber/v3"
-	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
+	"github.com/golang-jwt/jwt/v5"
 	"gorm.io/gorm"
 )
 
-const (
-	TokenTTL = 7 * 24 * time.Hour
-)
+const TokenTTL = 30 * 24 * time.Hour // JWT 30天过期
+
+type jwtClaims struct {
+	UserID uint   `json:"user_id"`
+	OpenID string `json:"open_id"`
+	jwt.RegisteredClaims
+}
 
 // AuthHandler 登录相关处理器
 type AuthHandler struct {
 	DB     *gorm.DB
-	RDB    *redis.Client
 	Wechat config.WechatConfig
+	JWT    config.JWTConfig
 }
 
 // Login POST /api/v1/auth/login
 func (h *AuthHandler) Login(c fiber.Ctx) error {
+	log := c.Locals("logger").(*slog.Logger)
+
 	var req model.LoginRequest
 	if err := json.Unmarshal(c.Body(), &req); err != nil || req.Code == "" {
 		return c.JSON(model.Error(model.CodeInvalidParam, "缺少 code 参数"))
@@ -36,6 +41,7 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 	// 1. 向微信服务器换取 openid
 	wxResp, err := thirdparty.ExchangeCode(h.Wechat, req.Code)
 	if err != nil {
+		log.Error("wechat code2session failed", "error", err)
 		return c.JSON(model.Error(model.CodeInternalError, "微信登录失败: "+err.Error()))
 	}
 
@@ -45,25 +51,35 @@ func (h *AuthHandler) Login(c fiber.Ctx) error {
 	if err == gorm.ErrRecordNotFound {
 		user = model.User{OpenID: wxResp.OpenID}
 		if createErr := h.DB.Create(&user).Error; createErr != nil {
+			log.Error("create user failed", "error", createErr)
 			return c.JSON(model.Error(model.CodeInternalError, "创建用户失败"))
 		}
+		log.Info("new user registered", "user_id", user.ID)
 	} else if err != nil {
+		log.Error("query user failed", "error", err)
 		return c.JSON(model.Error(model.CodeInternalError, "查询用户失败"))
 	}
 
-	// 3. 生成 Token (UUID v7, 时间有序)
-	token := uuid.Must(uuid.NewV7()).String()
-
-	// 4. 写入 Redis
-	session := model.UserSession{UserID: user.ID, OpenID: user.OpenID}
-	data, _ := json.Marshal(session)
-	if err := h.RDB.Set(c.Context(), cache.Fmt(cache.KeySession, token), data, TokenTTL).Err(); err != nil {
-		return c.JSON(model.Error(model.CodeInternalError, "缓存会话失败"))
+	// 3. 签发 JWT (30天过期)
+	now := time.Now()
+	claims := jwtClaims{
+		UserID: user.ID,
+		OpenID: user.OpenID,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(now.Add(TokenTTL)),
+			IssuedAt:  jwt.NewNumericDate(now),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	tokenStr, err := token.SignedString([]byte(h.JWT.Secret))
+	if err != nil {
+		log.Error("sign jwt failed", "error", err)
+		return c.JSON(model.Error(model.CodeInternalError, "签发令牌失败"))
 	}
 
-	// 5. 返回 Token
+	log.Info("login success", "user_id", user.ID)
 	return c.JSON(model.Success(model.LoginResponse{
-		Token:     token,
-		ExpiresAt: time.Now().Add(TokenTTL).Format(time.RFC3339),
+		Token:     tokenStr,
+		ExpiresAt: now.Add(TokenTTL).Format(time.RFC3339),
 	}))
 }

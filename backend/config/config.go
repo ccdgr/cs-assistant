@@ -15,7 +15,14 @@ type Config struct {
 	Redis  RedisConfig  `yaml:"redis"`
 	LLM    LLMConfig    `yaml:"llm"`
 	Wechat WechatConfig `yaml:"wechat"`
+	JWT    JWTConfig    `yaml:"jwt"`
 	Log    LogConfig    `yaml:"log"`
+}
+
+// ... existing structs until we add JWTConfig
+
+type JWTConfig struct {
+	Secret string `yaml:"secret"` // JWT 签名密钥
 }
 
 type ServerConfig struct {
@@ -110,6 +117,9 @@ func Load(path string) (*Config, error) {
 	}
 	if v := os.Getenv("WECHAT_APP_SECRET"); v != "" {
 		cfg.Wechat.AppSecret = v
+	}
+	if v := os.Getenv("JWT_SECRET"); v != "" {
+		cfg.JWT.Secret = v
 	}
 
 	return &cfg, nil
